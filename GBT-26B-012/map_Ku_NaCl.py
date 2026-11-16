@@ -31,7 +31,7 @@ rowsep   = 24.0*arcsec    # Nyquist at 57" beam -> 16 rows over 6'
 scanDur  = 48.5           # s per row (6' / 7.42"/s)
 
 # This SB does NOT self-manage pointing -- run pointing_Ku.py first.
-# (map_Ku_NaCl_withCal.py is the self-managing looping version.)
+# (map_Ku_NaCl_withCal.py runs a 2-map RA+Dec block in one SB.)
 Slew("SgrB2N")
 Balance()
 Break("Check IF power levels before mapping.")

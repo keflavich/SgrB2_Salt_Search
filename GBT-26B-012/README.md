@@ -13,51 +13,114 @@ Ku- and K-band on-the-fly (OTF), to localize the extended NaCl emission
 | `sgrb2_salt.cat` | ASTRID source catalog (SgrB2N; J2000, LSR) |
 | `config_Ku_NaCl.py` | Ku-band VEGAS config — NaCl v=0 **1‑0** (13 GHz, emission) |
 | `config_K_NaCl.py` | K-band VEGAS + KFPA config — NaCl v=0 **2‑1** (26 GHz, absorption) |
-| `pointing_Ku.py` | Ku pointing + focus + configure |
-| `pointing_K.py` | K pointing + focus + configure |
-| `map_Ku_NaCl.py` | Ku 6′×6′ OTF basketweave map |
-| `map_K_NaCl.py` | K 6′×6′ OTF basketweave map (KFPA) |
+| `pointing_Ku.py` | Ku pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2N", frequency=13026.0, …)` |
+| `pointing_K.py` | KFPA pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2N", frequency=26051.9, …)` |
+| `map_Ku_NaCl_RaLongMap.py` | Ku 6′×6′ OTF map, RA-scanned rows (one map) |
+| `map_Ku_NaCl_DecLatMap.py` | Ku 6′×6′ OTF map, Dec-scanned rows (one map) |
+| `map_K_NaCl_RaLongMap.py` | KFPA 6′×6′ OTF map, RA-scanned rows (one map) |
+| `map_K_NaCl_DecLatMap.py` | KFPA 6′×6′ OTF map, Dec-scanned rows (one map) |
+| `map_Ku_NaCl_withCal.py` | Ku RA+Dec map block (2 maps, no pointing) |
+| `map_KFPA_nacl_withCal.py` | KFPA RA+Dec map block (2 maps, no pointing) |
+| `map_Ku_NaCl.py`, `map_K_NaCl.py` | RA+Dec pair in one SB, with a `Break` — observer-run only |
+| `validate_scripts.py` | offline self-consistency check (see below) |
+| `plot_windows_on_primos.py` | overplots the Ku windows on the PRIMOS spectrum → `windows_on_primos.png` |
 
 ## Per-session sequence
 
-Each `map_<band>_NaCl.py` **"self-manages" pointing**: it runs
-`AutoPeakFocus` at the start and every `point_every` maps, re-Configures,
-`Balance`s, then loops single-direction OTF maps (alternating RA/Dec to
-basketweave). So a 3-h session is just:
+**Pointing and mapping are separate scheduling blocks.** `AutoPeakFocus` lives
+only in `pointing_<band>.py`; every map SB does its own
+`Configure` → `Slew` → `Balance` → map. That way a map that fails to balance,
+or has to be aborted, is re-run **on its own** — the point/focus is never
+repeated.
 
-1. `map_<band>_NaCl.py` — set `maps_this_session` to fill ~3 h.
-   (`pointing_<band>.py` remains available for a standalone point/focus check.)
-2. Repeat across sessions until the campaign total is reached:
-   **131 maps (Ku)** at 12.9 min each, and for K a count derived from the
-   on-source budget at **43.7 min/map** (see the K bullet below) — track the
-   cumulative count.
+The operator queues alternating SBs and lets ASTRID run down the list:
 
-Each map is **one single-direction OTF pass**, and the loop **alternates
-RA-scanned and Dec-scanned passes** (`i % 2`) so coverage is basketweaved —
-orthogonal maps suppress scan-direction striping and 1/f drifts.
+**KFPA (26 GHz)** — one map per pointing (a map is 43.7 min):
+
+| | SB | ≈ |
+|---|---|---|
+| 1 | `pointing_K.py` | 5 min |
+| 2 | `map_K_NaCl_RaLongMap.py` | 43.7 min |
+| 3 | `pointing_K.py` | 5 min |
+| 4 | `map_K_NaCl_DecLatMap.py` | 43.7 min |
+| | … repeat, alternating RA and Dec | |
+
+**Ku (13 GHz)** — a map is only 12.9 min, so each map SB runs a balanced
+RA+Dec pair (`maps_per_block = 2`, ~26 min) between pointings:
+
+| | SB | ≈ |
+|---|---|---|
+| 1 | `pointing_Ku.py` | 5 min |
+| 2 | `map_Ku_NaCl_withCal.py` | 25.8 min |
+| | … repeat | |
+
+Each map is **one single-direction OTF pass**, and the queue **alternates
+RA-scanned and Dec-scanned passes** so coverage is basketweaved — orthogonal
+maps suppress scan-direction striping and 1/f drifts. Stop when time is up:
+any completed map counts toward the campaign total.
+
+Campaign totals to track: **131 maps (Ku)** at 12.9 min each, and for KFPA a
+count derived from the on-source budget at **43.7 min/map** (see the K bullet
+below).
 
 We do frequent pointing (every ~30-40m) because of the low elevation.
 
 Scripts are meant to run verbatim; they assume the project directory is
 `/users/aginsbur/GBT-26B-012` (`PROJPATH`).
-They're easy to split up if we need more granular control while on-sky.
+
+`map_KFPA_nacl_withCal.py` is the KFPA equivalent of the Ku block script — two
+maps back to back with no re-point. At 26 GHz that leaves ~87 min between
+point/focus solutions, so it is **not** the default flow; use the
+single-direction SBs above unless pointing is known to be stable.
 
 ## Spectral setup
 
-As proposed:
-**VEGAS Mode 4, 187.5 MHz, ~32768 channels (5.7 kHz), a single spectral
-window on the primary line, replicated across all beams, with in-band
-frequency switching** (`swmode='sp'`, cal on). 187.5 MHz gives thousands
-of km/s of coverage so one wide window suffices and leaves room for a clean
-freq-switch throw. Native resolution is far finer than needed so we can smooth
-to ~1 km/s in reduction.
+**VEGAS Mode 4, 187.5 MHz windows, 32768 channels (5.7 kHz), in-band
+frequency switching** (`swmode='sp'`, cal on). Native resolution is far finer
+than needed, so smooth to ~1 km/s in reduction.
 
-- **Ku (1‑0):** 2 beams @ **NaCl v=0 1‑0 = 13026.061 MHz** (emission);
-  0.13 km/s native. Throw 11.7 MHz. 
-  There is a bright line 17 MHz away we need to avoid.
-- **K (2‑1):** 7 KFPA beams @ **NaCl v=0 2‑1 = 26051.898 MHz** (absorption);
-  0.065 km/s native. Throw 11.7 MHz.
+- **Ku:** **4 windows × 2 beams = 8 banks** (the dual-beam limit). NaCl is the
+  top priority. Window centers are rest frequencies (MHz); `config_Ku_NaCl.py`
+  is the source of truth.
 
+  | W | center | lines (offset from center, MHz) |
+  |---|---|---|
+  | 1 | 13058.79 | **NaCl v=0 1‑0 13026.061 (−32.7)**, H79α 13088.85 (+30.1), He79α 13094.18 (+35.4) |
+  | 2 | 14488.479 | H₂CO 2₁₁‑2₁₂ |
+  | 3 | 14131.49 | H77α 14128.61 (−2.9), He77α 14134.36 (+2.9) |
+  | 4 | 12881.17 | vib.-excited NaCl 12929.260 (+48.1), 12833.076 (−48.1) |
+
+  Windows are placed so every line sits within ±82 MHz of its center
+  (half-window minus the throw), i.e. stays in band in both switching phases.
+  Windows 1 and 4 overlap by ~10 MHz. `dopplertrackfreq` stays on NaCl
+  (13026.061), which is not a window center; the GBT configure docs allow this
+  (`validate_scripts.py` warns about it — expected).
+  `python plot_windows_on_primos.py` overplots the windows on the PRIMOS
+  spectrum (read from the config, so it cannot drift).
+- **K (2‑1):** 7 KFPA beams, **one** window on **NaCl v=0 2‑1 = 26051.898 MHz**
+  (absorption), replicated across beams (7 beams ⇒ 1 bank/beam). 0.065 km/s
+  native.
+- **Throw 11.72 MHz** in both bands (see the K-band caveat below).
+
+**Frequency switching vs position switching.** We use FSW because the lines are
+narrow, and because it validates that the region is emission-free. Both
+phases are recorded, so the same data can also be reduced as total power with
+an "off" built from the median (or n‑th percentile) spectrum of the map,
+masking bright emission/absorption.
+
+**Ku bright-line check (SO).** SO 1₂‑1₁ at 13043.81 MHz (2.3 K in PRIMOS, ~50×
+NaCl) is 17.75 MHz above NaCl. With the 11.72 MHz throw the closest approach of
+either line's switching image to the other line is 6.03 MHz (139 km/s); the
+folded-spectrum ghost in the NaCl channels is ≤~3 mK vs a 45 mK NaCl peak
+(both fold signs tested on PRIMOS). The SO image's nearest edge is only ~2 MHz
+(~46 km/s) from the NaCl emission edge, so check for velocity differences
+across the map in the first data. Changing the throw does not obviously help.
+
+**Beam 2 (Ku).** Both beams are recorded but maps use `beamName="1"`; beam 2
+sits 330″ (5.5′) away in cross-elevation, so it samples a patch just outside
+the 6′ field (recombination lines, whatever else the windows catch). That
+offset rotates with parallactic angle (up to ~35° at Sgr B2's low elevation),
+so beam 2 gives an arc of uneven coverage, not a clean adjacent tile.
 
 ## Map / sensitivity budget
 
@@ -74,7 +137,7 @@ s/beam; alternate RA/Dec across repeats to basketweave.
   its own, which needs Nyquist spacing. (51.43/3 = 17.14″ was an earlier
   attempt at this — it is still 20% coarser than Nyquist, and gave a ragged
   21.9994 rows. `mapsize/26` fixes both.) 10σ on the ~15 mK peak → ~3 mK/beam.
-  → ~2.5 h/session at 3 maps + point/focus each.
+  → ~2.4 h/session at 3 maps + a point/focus SB before each.
 
   **Integration per sky point scales with map duration, so the invariant is
   total on-source hours, not map count**: `N_maps = total_on_source / 43.7 min`.

@@ -40,7 +40,7 @@ scanDur  = 97.0           # s per row (6' / 3.71"/s); at tint=1.6 s that is
 # 27 rows x 97 s = 43.7 min of on-sky time per map, plus turnarounds.
 
 # This SB does NOT self-manage pointing -- run pointing_K.py first.
-# (map_K_nacl_withCal.py is the self-managing looping version.)
+# (map_KFPA_nacl_withCal.py runs a 2-map RA+Dec block in one SB.)
 Slew("SgrB2N")
 Balance()
 Break("Check IF power levels before mapping.")

@@ -1,5 +1,5 @@
 """
-GBT-26B-012 -- K-band (26 GHz) NaCl v=0 J=2-1 OTF map of Sgr B2(N), KFPA.
+GBT-26B-012 -- KFPA (26 GHz) NaCl v=0 J=2-1 OTF map of Sgr B2(N).
 
 Target: map the NaCl 2-1 ABSORPTION against the Sgr B2 continuum and
 localize which continuum sources it absorbs against.  Config: VEGAS Mode 4,
@@ -17,8 +17,17 @@ with map duration, so the invariant is TOTAL on-source hours, not the map
 count: N_maps = (total on-source time) / 43.7 min.  Multiply any map count
 tracked against the old 22-row / 35.6-min geometry by 35.6/43.7 = 0.82.
 
-Each map is ONE single-direction OTF pass; we ALTERNATE RA- and Dec-scanned
-passes to basketweave.  Run verbatim.  Track the cumulative count toward 116.
+POINTING IS NOT DONE IN THIS SB.  AutoPeakFocus lives in pointing_K.py so
+that a failed Balance or an aborted map never costs a repeated point/focus.
+The normal KFPA sequence is one map per pointing, alternating direction:
+
+    pointing_K.py  ->  map_K_NaCl_RaLongMap.py
+    pointing_K.py  ->  map_K_NaCl_DecLatMap.py     (repeat)
+
+This SB is the OPTIONAL variant that runs maps_per_block maps back to back
+with no re-pointing in between.  At 26 GHz and Sgr B2's low elevation that is
+only advisable when pointing is known to be stable; the default of 2 gives a
+balanced RA+Dec pair but leaves ~87 min between point/focus solutions.
 """
 
 # assumed to be the same as last time I observed a decade ago...
@@ -39,19 +48,13 @@ scanDur  = 97.0           # s per row (6' / 3.71"/s); at tint=1.6 s that is
                           # 5.9"/sample, inside FWHM/4 = 7.1"
 # 27 rows x 97 s = 43.7 min of on-sky time per map, plus turnarounds.
 
-# ---- session / pointing control ----
-maps_this_session = 3     # 3 x (43.7 min + ~5.5 min point/focus) = ~2.5 h
-maps_this_session = 10    # let the operator / observer quit at the end of time (10>>length of session, but the ASTRID validator runs each loop so 1000 is a bad idea)
-point_every       = 1     # re-point every map (~44 min); K-band + low
-                          # elevation
+# ---- how many maps before handing back for a re-point ----
+maps_per_block = 2        # RA + Dec = ~87 min; end the SB, then re-point.
 
-for ii in range(maps_this_session):
+Slew("SgrB2N")
+Balance()
 
-    if ii % point_every == 0:
-        AutoPeakFocus(beamName="1")
-        Configure(PROJPATH + "/config_K_NaCl.py")
-        Slew("SgrB2N")
-        Balance()
+for ii in range(maps_per_block):
 
     # ALTERNATE orthogonal scan directions (basketweave):
     if ii % 2 == 0:
