@@ -44,8 +44,21 @@ swper     = 0.8             # full switching cycle (s).  4 phases -> 200 ms
                             # loses ~5.5%.  swper=0.4 gave 100 ms phases and
                             # tripped ASTRID's ">10% of your data will be
                             # blanked in BankX using mode MODE4" warning.
-swfreq    = 0.0, 11.71875   # CHECK: (0.0, bandwidth*2**-4)
-                            # CHECK: (0.0, 2048*chanwidth)
+swfreq    = -5.859375, 5.859375   # CHECK: (-bandwidth*2**-5, bandwidth*2**-5)
+                            # CHECK: (-1024*chanwidth, 1024*chanwidth)
+                            # SYMMETRIC about restfreq (the GBT default form,
+                            # -/+ 0.25*bandwidth, scaled down).  Two reasons:
+                            # (1) the band kept in BOTH phases is
+                            #     restfreq +/- (93.75 - 5.86) = +/-87.89 MHz
+                            #     whatever the sign convention of the throw;
+                            #     with 0, +11.72 it is only +/-82.03 MHz unless
+                            #     the sign is known.
+                            # (2) VEGAS has a spike at the exact center of the
+                            #     passband (GBT docs: VEGAS > Instrumental
+                            #     Features).  With a 0 offset, NaCl 2-1 (=restfreq)
+                            #     sat on it in one phase; now the spike lands
+                            #     at restfreq -/+ 5.86 MHz (-/+ 67 km/s).
+                            # The throw (difference) is unchanged: 11.71875 MHz.
                             # throw = 187.5/16 MHz = exactly 2048 channels
                             # of 5.722 kHz.  = 135 km/s at 26.05 GHz.
                             # Well inside the +/-93.75 MHz half-window.

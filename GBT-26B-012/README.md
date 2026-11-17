@@ -24,6 +24,8 @@ Ku- and K-band on-the-fly (OTF), to localize the extended NaCl emission
 | `map_Ku_NaCl.py`, `map_K_NaCl.py` | RA+Dec pair in one SB, with a `Break` — observer-run only |
 | `validate_scripts.py` | offline self-consistency check (see below) |
 | `plot_windows_on_primos.py` | overplots the Ku windows on the PRIMOS spectrum → `windows_on_primos.png` |
+| `drift_rfi.py` | GBT RFI-monitor scans from NRAO DRIFT → RFI in the Ku + K windows, Doppler-mapped to rest frequency for 26B → `rfi_on_primos.png`, `drift_rfi_regions.csv` (raw spectra cached in `drift_cache/`, git-ignored) |
+| `plot_pointing_overview.py` | map-center options on ALMA 3 mm → `pointing_overview.png` |
 
 ## Per-session sequence
 
@@ -85,14 +87,17 @@ than needed, so smooth to ~1 km/s in reduction.
 
   | W | center | lines (offset from center, MHz) |
   |---|---|---|
-  | 1 | 13058.79 | **NaCl v=0 1‑0 13026.061 (−32.7)**, H79α 13088.85 (+30.1), He79α 13094.18 (+35.4) |
+  | 1 | 13083.45 | **NaCl v=0 1‑0 13026.061 (−57.4)**, H79α 13088.85 (+5.4), He79α 13094.18 (+10.7), H₂C¹⁸O 2₁₁‑2₁₂ 13166.04 (+82.6) |
   | 2 | 14488.479 | H₂CO 2₁₁‑2₁₂ |
-  | 3 | 14131.49 | H77α 14128.61 (−2.9), He77α 14134.36 (+2.9) |
-  | 4 | 12881.17 | vib.-excited NaCl 12929.260 (+48.1), 12833.076 (−48.1) |
+  | 3 | 13778.804 | H₂¹³CO 2₁₁‑2₁₂ |
+  | 4 | 12915.67 | vib.-excited NaCl 12929.260 (+13.6), 12833.076 (−82.6) |
 
-  Windows are placed so every line sits within ±82 MHz of its center
-  (half-window minus the throw), i.e. stays in band in both switching phases.
-  Windows 1 and 4 overlap by ~10 MHz. `dopplertrackfreq` stays on NaCl
+  The switching offsets are symmetric (`swfreq = −5.86, +5.86`), so each
+  window keeps center ±87.89 MHz in band in both phases, for either sign
+  convention. Every line is inside that range. NaCl v=2 and H₂C¹⁸O are
+  5.3 MHz inside it. The both-phase ranges of W4 (12827.8–13003.6) and W1
+  (12995.6–13171.3) overlap by 8 MHz, so nothing between them is lost. These
+  margins tolerate up to 4 MHz of band-edge roll-off. `dopplertrackfreq` stays on NaCl
   (13026.061), which is not a window center; the GBT configure docs allow this
   (`validate_scripts.py` warns about it — expected).
   `python plot_windows_on_primos.py` overplots the windows on the PRIMOS
@@ -100,7 +105,9 @@ than needed, so smooth to ~1 km/s in reduction.
 - **K (2‑1):** 7 KFPA beams, **one** window on **NaCl v=0 2‑1 = 26051.898 MHz**
   (absorption), replicated across beams (7 beams ⇒ 1 bank/beam). 0.065 km/s
   native.
-- **Throw 11.72 MHz** in both bands (see the K-band caveat below).
+- **Throw 11.72 MHz** in both bands, as symmetric offsets ±5.86 MHz (see the
+  K-band caveat below). With symmetric offsets, VEGAS's center-channel spike
+  never sits on a line placed at a window center (H₂CO, H₂¹³CO, NaCl 2‑1).
 
 **Frequency switching vs position switching.** We use FSW because the lines are
 narrow, and because it validates that the region is emission-free. Both
@@ -176,8 +183,8 @@ Consistency relations are written into the configs themselves as `CHECK:`
 annotations, evaluated against the *full* config namespace:
 
 ```python
-swfreq = 0.0, 11.71875      # CHECK: (0.0, bandwidth*2**-4)
-                            # CHECK: (0.0, 2048*chanwidth)
+swfreq = -5.859375, 5.859375   # CHECK: (-bandwidth*2**-5, bandwidth*2**-5)
+                               # CHECK: (-1024*chanwidth, 1024*chanwidth)
 tint   = 1.6                # CHECK: 2*swper
 ```
 
