@@ -1,5 +1,5 @@
 """
-GBT-26B-012 -- Ku-band (13 GHz) NaCl v=0 J=1-0 OTF map of Sgr B2(N).
+GBT-26B-012 -- Ku-band (13 GHz) NaCl v=0 J=1-0 OTF map of Sgr B2 (centered on Sgr B2 M).
 
 6'x6' map at 13.026 GHz:
     FWHM 56.7" | slew 7.42"/s
@@ -32,12 +32,12 @@ scanDur  = 48.5           # s per row (6' / 7.42"/s)
 
 # This SB does NOT self-manage pointing -- run pointing_Ku.py first.
 # (map_Ku_NaCl_withCal.py runs a 2-map RA+Dec block in one SB.)
-Slew("SgrB2N")
+Slew("SgrB2M")
 Balance()
 Break("Check IF power levels before mapping.")
 
 # RA-scanned rows, stepped in Dec:
-RALongMap("SgrB2N",
+RALongMap("SgrB2M",
     hLength = Offset("J2000", mapsize, 0.0, cosv=True),
     vLength = Offset("J2000", 0.0, mapsize, cosv=True),
     vDelta  = Offset("J2000", 0.0, rowsep, cosv=True),
@@ -45,7 +45,7 @@ RALongMap("SgrB2N",
     beamName = "1")
 
 # Dec-scanned rows, stepped in RA (orthogonal to the above):
-DecLatMap("SgrB2N",
+DecLatMap("SgrB2M",
     hLength = Offset("J2000", mapsize, 0.0, cosv=True),
     vLength = Offset("J2000", 0.0, mapsize, cosv=True),
     hDelta  = Offset("J2000", rowsep, 0.0, cosv=True),

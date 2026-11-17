@@ -1,5 +1,5 @@
 """
-GBT-26B-012 -- K-band (26 GHz) NaCl v=0 J=2-1 OTF map of Sgr B2(N), KFPA.
+GBT-26B-012 -- K-band (26 GHz) NaCl v=0 J=2-1 OTF map of Sgr B2 (centered on Sgr B2 M), KFPA.
 
 Target: map the NaCl 2-1 ABSORPTION against the Sgr B2 continuum and
 localize which continuum sources it absorbs against.  Config: VEGAS Mode 4,
@@ -41,11 +41,11 @@ scanDur  = 97.0           # s per row (6' / 3.71"/s); at tint=1.6 s that is
 
 # One map per SB (the recommended GBT practice).  Pointing is NOT handled
 # here -- run pointing_K.py first, and again every ~35-40 min.
-Slew("SgrB2N")
+Slew("SgrB2M")
 Balance()
 
 # RA-scanned rows, stepped in Dec:
-RALongMap("SgrB2N",
+RALongMap("SgrB2M",
     hLength = Offset("J2000", mapsize, 0.0, cosv=True),
     vLength = Offset("J2000", 0.0, mapsize, cosv=True),
     vDelta  = Offset("J2000", 0.0, rowsep, cosv=True),

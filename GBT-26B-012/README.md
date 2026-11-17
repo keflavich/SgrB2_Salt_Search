@@ -2,7 +2,8 @@
 
 ASTRID observing scripts for the GBT mapping proposal that follows up the
 22A-020 VLA non-detection of NaCl in Sgr B2(N). We map a **6′ × 6′** region
-centered on **Sgr B2(N)** (encompassing Sgr B2(M) and G0.693−0.027) at both
+centered on **Sgr B2(M)** (encompassing Sgr B2(N) and G0.693−0.027; maps
+before 2026-11-17 were centered on Sgr B2(N), 46″ north) at both
 Ku- and K-band on-the-fly (OTF), to localize the extended NaCl emission
 (13 GHz, seen by PRIMOS, resolved out by the VLA) and the 26 GHz absorption.
 
@@ -10,11 +11,11 @@ Ku- and K-band on-the-fly (OTF), to localize the extended NaCl emission
 
 | File | Purpose |
 |------|---------|
-| `sgrb2_salt.cat` | ASTRID source catalog (SgrB2N; J2000, LSR) |
+| `sgrb2_salt.cat` | ASTRID source catalog (map center SgrB2M; SgrB2N kept; J2000, LSR) |
 | `config_Ku_NaCl.py` | Ku-band VEGAS config — NaCl v=0 **1‑0** (13 GHz, emission) |
 | `config_K_NaCl.py` | K-band VEGAS + KFPA config — NaCl v=0 **2‑1** (26 GHz, absorption) |
-| `pointing_Ku.py` | Ku pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2N", frequency=13026.0, …)` |
-| `pointing_K.py` | KFPA pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2N", frequency=26051.9, …)` |
+| `pointing_Ku.py` | Ku pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2M", frequency=13026.0, …)` |
+| `pointing_K.py` | KFPA pointing + focus (standalone SB), `AutoPeakFocus(location="SgrB2M", frequency=26051.9, …)` |
 | `map_Ku_NaCl_RaLongMap.py` | Ku 6′×6′ OTF map, RA-scanned rows (one map) |
 | `map_Ku_NaCl_DecLatMap.py` | Ku 6′×6′ OTF map, Dec-scanned rows (one map) |
 | `map_K_NaCl_RaLongMap.py` | KFPA 6′×6′ OTF map, RA-scanned rows (one map) |
@@ -25,6 +26,8 @@ Ku- and K-band on-the-fly (OTF), to localize the extended NaCl emission
 | `validate_scripts.py` | offline self-consistency check (see below) |
 | `plot_windows_on_primos.py` | overplots the Ku windows on the PRIMOS spectrum → `windows_on_primos.png` |
 | `drift_rfi.py` | GBT RFI-monitor scans from NRAO DRIFT → RFI in the Ku + K windows, Doppler-mapped to rest frequency for 26B → `rfi_on_primos.png`, `drift_rfi_regions.csv` (raw spectra cached in `drift_cache/`, git-ignored) |
+| `reduction/` | GBTIDL OTF reduction: `reduce_session.pro` (driver), `otf_map_scans.pro`, `otf_tsys_table.pro`, `fsw_otf_line.pro`; Python: `grid_tsys.py`, `make_cubes.py`, `line_maps.py`, `diag_*.py` |
+| `line_plan.py` | target-line extents + window geometry (both-states band, VEGAS spike and its FSW images); used by the validator and both plots |
 | `plot_pointing_overview.py` | map-center options on ALMA 3 mm → `pointing_overview.png` |
 
 ## Per-session sequence
@@ -75,6 +78,52 @@ maps back to back with no re-point. At 26 GHz that leaves ~87 min between
 point/focus solutions, so it is **not** the default flow; use the
 single-direction SBs above unless pointing is known to be stable.
 
+## Reduction (`reduction/`)
+
+GBTIDL procedures plus one Python gridder. On a GBO machine, in GBTIDL:
+
+```idl
+!path = expand_path('+/users/aginsbur/GBT-26B-012/reduction') + ':' + !path
+reduce_session, 'AGBT26B_012_01'          ; or /live while observing
+```
+
+This writes, for every RALongMap/DecLatMap row in the session:
+
+- `AGBT26B_012_01_tsys.csv`: Tsys of every integration (all 4 windows,
+  both beams and pols, both FSW states) with position and elevation.
+  `python grid_tsys.py AGBT26B_012_01_tsys.csv` grids it into raw Tsys maps
+  per beam and an edge-referenced continuum map per window (FITS + PNG).
+- `AGBT26B_012_01_H2CO.fits`: one calibrated, folded spectrum per
+  integration (Ta, LSR −650…+650 km/s, 0.47 km/s channels). Each spectrum has
+  a baseline fitted outside the line and its two FSW images.
+  `gbtgridder --clobber -o AGBT26B_012_01_H2CO AGBT26B_012_01_H2CO.fits`
+  makes the cube.
+
+Grid each session separately and combine the cubes afterwards. Doppler
+tracking is on NaCl 1-0, so the velocity of a given W2 channel shifts slightly
+between sessions, and gbtgridder assumes every input spectrum has the same
+channels.
+
+### Whole windows and moment maps (local Python)
+
+fourier has no astropy, so the gridding and maps run locally on copies of the
+keep files.
+
+```idl
+reduce_session, 'AGBT26B_012_01', /notsys, /windows   ; -> _W1.._W4.fits, whole folded windows
+```
+
+| script | does |
+|---|---|
+| `make_cubes.py KEEP.fits ...` | grids keep files into `<root>_cube.fits` (+ `_wt.fits`); gbtgridder's kernel and frequency convention, numpy/scipy only |
+| `line_maps.py CUBE.fits ...` | per-line local baseline (±150 km/s around the line, avoiding PRIMOS features and FSW images), moment-0 + error FITS, `<root>_lines.csv`, `<root>_mom0.png` gallery and `<root>_spectra.png` toward N and M. It maps the named lines, the RRLs (Rydberg formula) and unknown PRIMOS features ≥ 15 mK |
+| `make_primos_features.py` | regenerates `primos_features.csv` (PRIMOS detections in W1–W4) from `../PRIMOS_Full.txt` |
+| `diag_feed_spectra.py KEEP.fits` | mean spectrum per feed × pol, off-source and on M: shows the FSW baseline ripple of each feed/pol |
+| `diag_crosstalk.py KEEP.fits --blob RA DEC` | tests whether a compact feature is real sky or one feed leaking into the other |
+
+Diagnostic outputs go in `diagnostics/` next to the data (the default
+`--outdir`), so they are kept.
+
 ## Spectral setup
 
 **VEGAS Mode 4, 187.5 MHz windows, 32768 channels (5.7 kHz), in-band
@@ -87,17 +136,25 @@ than needed, so smooth to ~1 km/s in reduction.
 
   | W | center | lines (offset from center, MHz) |
   |---|---|---|
-  | 1 | 13083.45 | **NaCl v=0 1‑0 13026.061 (−57.4)**, H79α 13088.85 (+5.4), He79α 13094.18 (+10.7), H₂C¹⁸O 2₁₁‑2₁₂ 13166.04 (+82.6) |
-  | 2 | 14488.479 | H₂CO 2₁₁‑2₁₂ |
-  | 3 | 13778.804 | H₂¹³CO 2₁₁‑2₁₂ |
-  | 4 | 12915.67 | vib.-excited NaCl 12929.260 (+13.6), 12833.076 (−82.6) |
+  | 1 | 13085.66 | **NaCl v=0 1‑0 13026.061 (−59.6)**, H79α 13088.85 (+3.2), He79α 13094.18 (+8.5), H₂C¹⁸O 2₁₁‑2₁₂ 13166.04 (+80.4) |
+  | 2 | 14516.0 | H₂CO 2₁₁‑2₁₂ 14488.479 (−27.5) |
+  | 3 | 13753.8 | H₂¹³CO 2₁₁‑2₁₂ 13778.804 (+25.0) |
+  | 4 | 12916.41 | vib.-excited NaCl 12929.260 (+12.8), 12833.076 (−83.3) |
 
   The switching offsets are symmetric (`swfreq = −5.86, +5.86`), so each
-  window keeps center ±87.89 MHz in band in both phases, for either sign
-  convention. Every line is inside that range. NaCl v=2 and H₂C¹⁸O are
-  5.3 MHz inside it. The both-phase ranges of W4 (12827.8–13003.6) and W1
-  (12995.6–13171.3) overlap by 8 MHz, so nothing between them is lost. These
-  margins tolerate up to 4 MHz of band-edge roll-off. `dopplertrackfreq` stays on NaCl
+  window keeps center ±87.89 MHz in band in both states, for either sign
+  convention. VEGAS also puts a one-channel spike at the center of each
+  state's band, i.e. at center ±5.86, and folding copies it to center ±17.58.
+  `line_plan.py` lists each target line's extent: measured in PRIMOS where
+  the line is detected (including the H₂CO / H₂¹³CO foreground absorption),
+  otherwise ±30 km/s (NaCl) or ±40 km/s (RRLs). `validate_scripts.py` checks
+  that every extent is ≥3 MHz inside the both-states band and clears the
+  spike and its images. H₂CO and H₂¹³CO therefore sit 25–28 MHz off their
+  window centers. The +5.86 spike falls between H79α and He79α, 61 km/s from
+  each; no placement does better while keeping H₂C¹⁸O in W1 and W1/W4
+  overlapping. The both-states ranges of W4 (12828.5–13004.3) and W1
+  (12997.8–13173.6) overlap by 6.5 MHz, so nothing between NaCl v=2 and
+  H₂C¹⁸O is lost. `dopplertrackfreq` stays on NaCl
   (13026.061), which is not a window center; the GBT configure docs allow this
   (`validate_scripts.py` warns about it — expected).
   `python plot_windows_on_primos.py` overplots the windows on the PRIMOS

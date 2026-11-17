@@ -15,12 +15,12 @@ PROJPATH = "/users/aginsbur/GBT-26B-012"
 Catalog(PROJPATH + "/sgrb2_salt.cat")
 
 # AutoPeakFocus runs its own continuum configuration, so do NOT Configure first.
-# location="SgrB2N" makes it slew to the neighborhood of Sgr B2 and pick the
+# location="SgrB2M" makes it slew to the neighborhood of Sgr B2 and pick the
 # pointing/focus calibrator close to it (important: Sgr B2 is low in the sky,
 # so a calibrator picked without regard to the science position can be far away
 # in azimuth/elevation).  frequency (MHz) matches the pointing model to the
 # science band.  [Suggestion from Tony.]
-AutoPeakFocus(location="SgrB2N", frequency=13026.0, beamName="1")
+AutoPeakFocus(location="SgrB2M", frequency=13026.0, beamName="1")
 
 # ALWAYS reconfigure after AutoPeakFocus so the system is never left in its
 # continuum pointing configuration.  The map SB configures again itself; this

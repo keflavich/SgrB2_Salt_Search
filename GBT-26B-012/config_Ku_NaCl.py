@@ -24,29 +24,32 @@ obstype   = 'Spectroscopy'
 backend   = 'VEGAS'
 
 # 4-window setup, replicated to both beams.  NaCl is the top priority.
-#   W1  13083.45  NaCl v=0 1-0 (13026.061, -57.4 MHz), H79a/He79a (13088.85 /
-#                 13094.18, +5.4 / +10.7 MHz), H2C18O 2(1,1)-2(1,2) (13166.04,
-#                 +82.6 MHz).
-#   W2  14488.479 H2CO 2(1,1)-2(1,2).
-#   W3  13778.804 H2(13)CO 2(1,1)-2(1,2), centered (strong absorption in PRIMOS).
+#   W1  13085.66  NaCl v=0 1-0 (13026.061, -59.6 MHz), H79a/He79a (13088.85 /
+#                 13094.18, +3.2 / +8.5 MHz), H2C18O 2(1,1)-2(1,2) (13166.04,
+#                 +80.4 MHz).  The +5.86 MHz VEGAS spike falls midway between
+#                 H79a and He79a (61 km/s from each).
+#   W2  14516.0   H2CO 2(1,1)-2(1,2) at -27.5 MHz, so the whole Sgr B2
+#                 absorption complex (14486.7-14492.9, -91..+37 km/s) is clear
+#                 of the spike (+/-5.86) and its FSW images (+/-17.58).
+#   W3  13753.8   H2(13)CO 2(1,1)-2(1,2) at +25.0 MHz (same reason).
 #                 Replaces H77a/He77a (14128.61/14134.36), no longer observed.
-#   W4  12915.67  vibrationally excited NaCl 12929.260 (+13.6 MHz) and
-#                 12833.076 (-82.6 MHz).
-# W1/W4 placement: with the symmetric swfreq below, each window keeps
-# center +/-87.89 MHz in band in BOTH FSW phases, for either sign of the throw.
-#   W4 both-phase 12827.78-13003.56, W1 both-phase 12995.56-13171.34
-#   -> 8.0 MHz overlap: no gap between NaCl v=2 and H2C18O.
-# NaCl v=2 and H2C18O are each 5.3 MHz inside their both-phase edge (the
-# overlap and these margins tolerate up to 4 MHz of VEGAS edge roll-off).
-# NaCl 1-0 is 30.5 MHz inside W1's both-phase edge.
+#   W4  12916.41  vibrationally excited NaCl 12929.260 (+12.8 MHz) and
+#                 12833.076 (-83.3 MHz).
+# With the symmetric swfreq below, each window keeps center +/-87.89 MHz in
+# band in BOTH FSW states, for either sign of the throw:
+#   W4 12828.52-13004.30, W1 12997.77-13173.55 -> 6.5 MHz overlap, so there is
+#   no gap between NaCl v=2 and H2C18O.  NaCl v=2 (+/-30 km/s) is 3.3 MHz and
+#   H2C18O 6.7 MHz inside their edges; NaCl 1-0 is 27.5 MHz inside.
+# line_plan.py holds the line extents; validate_scripts.py checks every target
+# against the band edges, the VEGAS center spike and the spike's FSW images.
 # below 12706 RFI gets super ratty (in PRIMOS)
 #
 # NOTE: 4 windows x 2 beams = 8 VEGAS banks.  A dual-beam receiver is limited
 # to 4 banks per beam, so this is exactly at the limit -- no room for a 5th
 # window without dropping to a single beam.
-restfreq  = 13083.45, 14488.479, 13778.804, 12915.67
+restfreq  = 13085.66, 14516.0, 13753.8, 12916.41
 bandwidth = 187.5           # MHz (VEGAS Mode 4), single value for all windows
-dopplertrackfreq = 13026.061   # NaCl 1-0 (not window 1's center, 13083.45)
+dopplertrackfreq = 13026.061   # NaCl 1-0 (not window 1's center, 13085.66)
                             # CHECK: 13026.061
 nchan     = 32768           # -> 5.722 kHz = 0.13 km/s at 13 GHz
 
@@ -101,7 +104,7 @@ pol       = 'Circular'      # Rcvr12_18 has cooled polarizers producing
 # ---------------------------------------------------------------------
 # Ku-band line reference (MHz, LSR rest):
 #   NaCl v=0 1-0  13026.061   <-- PRIMARY target (emission)
-#   [window 1 spans 12989.70-13177.20 MHz: NaCl 1-0, H79a, He79a, H2C18O]
+#   [window 1 spans 12991.91-13179.41 MHz: NaCl 1-0, H79a, He79a, H2C18O]
 # Beam FWHM ~ 57" at 13 GHz.
 #
 # NOTE: the two Ku feeds are separated by 330" (5.5') in cross-elevation, so
